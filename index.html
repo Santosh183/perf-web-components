@@ -9,17 +9,17 @@
   <body>
 
     <script type="module" src="/src/index.ts"></script>
-    
+
     <h2>Vertical Virtual List</h2>
     <virtual-list
         id="myVirtualList"
-        max-nodes="5"
+        max-nodes="10"
         estimated-item-size="60"
         style="height: 200px; width: 300px;"
     >
 
         <template>
-            <div style="padding: 10px; border-bottom: 1px solid #ccc;">
+            <div style="padding: 10px; border: 1px solid #ccc; margin-bottom: 10px;">
                 <strong>#{{item.id}}</strong> - {{item.title}}
             </div>
         </template>
@@ -29,14 +29,14 @@
     <h2>Horizontal Virtual List</h2>
     <virtual-list
         id="myHorizontalVirtualList"
-        max-nodes="5"
+        max-nodes="10"
         estimated-item-size="60"
-        style="height: 200px; width: 300px;"
+        style="height: 200px; width: 800px;"
         scroll-direction="horizontal"
     >
 
         <template>
-            <div style="padding: 10px; border-bottom: 1px solid #ccc;">
+            <div style="padding: 10px; border: 1px solid #ccc; margin-right: 10px;">
                 <strong>#{{item.id}}</strong> - {{item.title}}
             </div>
         </template>

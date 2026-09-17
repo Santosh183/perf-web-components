@@ -13,7 +13,7 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
   private _nodePool: HTMLDivElement[] = [];
   private _estimatedItemSize: number = 50;
   private _userTemplate: string | null = null;
-  private _isConnected: boolean = false;
+  private _pendingFrame: number | null = null;
 
   private $viewport: HTMLDivElement;
   private $phantom: HTMLDivElement;
@@ -88,19 +88,20 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
     if (oldValue === newValue) return;
 
     if (name === 'max-nodes') {
-      this._maxNodes = parseInt(newValue || '20', 10) || 20;
+      const parsed = parseInt(newValue ?? '', 10);
+      this._maxNodes = Number.isNaN(parsed) ? 20 : parsed;
       this._buildNodePool();
     } else if (name === 'scroll-direction') {
       this._scrollDirection = newValue === 'horizontal' ? 'horizontal' : 'vertical';
     } else if (name === 'estimated-item-size') {
-      this._estimatedItemSize = parseFloat(newValue || '50') || 50;
+      const parsed = parseFloat(newValue ?? '');
+      this._estimatedItemSize = Number.isNaN(parsed) ? 50 : parsed;
     }
     this._updateLayout();
     this._render();
   }
 
   connectedCallback(): void {
-    this._isConnected = true;
     this.$viewport.addEventListener('scroll', this._onScroll, { passive: true });
     if (this.$slot) {
       this.$slot.addEventListener('slotchange', this._onSlotChange);
@@ -113,10 +114,13 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
   }
 
   disconnectedCallback(): void {
-    this._isConnected = false;
     this.$viewport.removeEventListener('scroll', this._onScroll);
     if (this.$slot) {
       this.$slot.removeEventListener('slotchange', this._onSlotChange);
+    }
+    if (this._pendingFrame !== null) {
+      cancelAnimationFrame(this._pendingFrame);
+      this._pendingFrame = null;
     }
   }
 
@@ -137,12 +141,9 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
   }
 
   set items(data: T[]) {
-    if (!Array.isArray(data)) {
-      this._items = [];
-      return;
-    }
+    const list = Array.isArray(data) ? data : [];
 
-    this._items = new Proxy(data, {
+    this._items = new Proxy(list, {
       set: (target: T[], property: string | symbol, value: unknown, receiver: unknown) => {
         const success = Reflect.set(target, property, value, receiver);
         this._updateLayout();
@@ -191,7 +192,6 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
     const fragment = document.createDocumentFragment();
     for (let i = 0; i < this._maxNodes; i++) {
       const nodeWrapper = document.createElement('div');
-      nodeWrapper.dataset.poolIndex = String(i);
       this._nodePool.push(nodeWrapper);
       fragment.appendChild(nodeWrapper);
     }
@@ -215,11 +215,22 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
   }
 
   private _onScroll(): void {
-    requestAnimationFrame(() => this._render());
+    if (this._pendingFrame !== null) return;
+    this._pendingFrame = requestAnimationFrame(() => {
+      this._pendingFrame = null;
+      this._render();
+    });
   }
 
   private _render(): void {
-    if (!this.$viewport || !this._items.length || !this._nodePool.length) return;
+    if (!this.$viewport || !this._nodePool.length) return;
+
+    if (!this._items.length) {
+      for (const node of this._nodePool) {
+        node.style.display = 'none';
+      }
+      return;
+    }
 
     const isHoriz = this._scrollDirection === 'horizontal';
     const scrollOffset = isHoriz ? this.$viewport.scrollLeft : this.$viewport.scrollTop;
@@ -257,13 +268,24 @@ export class VirtualList<T = Record<string, unknown>> extends HTMLElement {
   private _interpolate(templateStr: string, item: unknown, index: number): string {
     return templateStr.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key: string) => {
       if (key === 'index') return String(index);
-      if (key === 'item') return typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item);
+      if (key === 'item') {
+        return this._escapeHtml(typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item));
+      }
 
       const path = key.startsWith('item.') ? key.slice(5) : key;
       const val = path.split('.').reduce((obj: any, prop: string) => (obj && obj[prop] !== undefined ? obj[prop] : undefined), item);
 
-      return val !== undefined ? String(val) : '';
+      return val !== undefined ? this._escapeHtml(String(val)) : '';
     });
+  }
+
+  private _escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }
 
