@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="./style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual List Web Component Demo</title>
+  </head>
+  <body>
+
+    <script type="module" src="/src/index.ts"></script>
+    
+    <h2>Vertical Virtual List</h2>
+    <virtual-list
+        id="myVirtualList"
+        max-nodes="5"
+        estimated-item-size="60"
+        style="height: 200px; width: 300px;"
+    >
+
+        <template>
+            <div style="padding: 10px; border-bottom: 1px solid #ccc;">
+                <strong>#{{item.id}}</strong> - {{item.title}}
+            </div>
+        </template>
+
+    </virtual-list>
+
+    <h2>Horizontal Virtual List</h2>
+    <virtual-list
+        id="myHorizontalVirtualList"
+        max-nodes="5"
+        estimated-item-size="60"
+        style="height: 200px; width: 300px;"
+        scroll-direction="horizontal"
+    >
+
+        <template>
+            <div style="padding: 10px; border-bottom: 1px solid #ccc;">
+                <strong>#{{item.id}}</strong> - {{item.title}}
+            </div>
+        </template>
+
+    </virtual-list>
+    <script type="module">
+        import { VirtualList } from '/src/index.ts';
+
+        const listEl = document.getElementById('myVirtualList');
+        listEl.items = Array.from({ length: 10000 }, (_, i) => ({
+          id: i + 1,
+          title: `Item Title ${i + 1}`
+        }));
+
+        const horizontalListEl = document.getElementById('myHorizontalVirtualList');
+        horizontalListEl.items = Array.from({ length: 10000 }, (_, i) => ({
+          id: i + 1,
+          title: `Item Title ${i + 1}`
+        }));
+    </script>
+  </body>
+</html>
